@@ -1,0 +1,29 @@
+*{
+    padding: 0px;
+    margin: 0px;
+}
+.navBar{
+    height: 10vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: row;
+    background-color: aqua;
+}
+.navList{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    list-style: none;
+}
+.logo{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    width: 40px;
+    background-image: url("logo.png") cover no-repeat;
+}
+.logo img{
+    /* object-fit: cover; */
+}
