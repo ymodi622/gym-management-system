@@ -1,179 +1,190 @@
 <?php
-include 'admin_nav.php';
-include '../conn.php';
+require_once __DIR__ . '/../config/app.php';
+use App\Database;
+use App\SessionManager;
 
-if (isset($_SESSION['admin_name'])) {
+$session = new SessionManager();
+$session->start();
 
-    if (isset($_POST['cancel'])) {
-        $mbrToDelete = $_POST['cancel'];
-        // echo "$mbrToDelete";
-        $flag = 0;
-        $delFlag = 0;
-        $count = 1;
-        echo '
-    <script>if (confirm("Cancel membership?") == true) {
-        text = "You pressed OK!";
-        ' . $flag++ . '
-      }</script>';
-        if ($flag != 0) {
-
-            $selMbr = "SELECT member_id FROM memberships where mbs_id = '$mbrToDelete'";
-            $del = "DELETE FROM memberships where mbs_id = '$mbrToDelete'";
-
-            if ($result = mysqli_query($conn, $selMbr)) {
-                if ($row = mysqli_fetch_assoc($result)) {
-                    $memId = $row['member_id'];
-                }
-            }
-            $selMbr = "SELECT * FROM memberships where member_id = '$memId'";
-            if ($result = mysqli_query($conn, $selMbr)) {
-
-                // Return the number of rows in result set
-                $rowcount = mysqli_num_rows($result);
-            }
-            if ($result = $conn->query($del)) {
-                echo "<script>alert('Membership deleted successfully!');</script>";
-            }
-
-            if ($rowcount == 1) {
-                $delMem = "DELETE FROM members where member_id = '$memId'";
-                $conn->query($delMem);
-            }
-        }
-    }
-} else {
+if (!isset($_SESSION['admin_name'])) {
     header("location:admin_login.php");
-
+    exit;
 }
+
+$db = Database::getInstance();
+$error = '';
+$success = '';
+
+if (isset($_POST['cancel'])) {
+    $mbsId = (string)$_POST['cancel'];
+    // Logic to cancel membership
+    $membership = $db->fetchOne("SELECT member_id FROM memberships WHERE mbs_id = ?", [$mbsId]);
+    if ($membership) {
+        $memId = $membership['member_id'];
+        $db->execute("DELETE FROM memberships WHERE mbs_id = ?", [$mbsId]);
+        
+        // Check if user has other memberships
+        $otherMbs = $db->fetchAll("SELECT mbs_id FROM memberships WHERE member_id = ?", [$memId]);
+        if (empty($otherMbs)) {
+            $db->execute("DELETE FROM members WHERE member_id = ?", [$memId]);
+        }
+        $success = "Membership cancelled successfully.";
+    }
+}
+
+$memberships = $db->fetchAll("SELECT * FROM memberships");
 ?>
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>User Details</title>
-
+    <title>Memberships Management - Willty Fitness</title>
     <style>
-        .course-form-section {
-            background-color: #fff;
-            padding: 50px 0;
-            margin-bottom: 150px;
+        :root {
+            --primary: #818cf8;
+            --bg-dark: #0f172a;
+            --glass-bg: rgba(255, 255, 255, 0.03);
+            --glass-border: rgba(255, 255, 255, 0.08);
         }
-
-        .course-form-container {
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 20px 37px;
-            /* border: 1px solid #444; */
-            border-radius: 5px;
-            background: #eff2fb;
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-dark);
+            color: #fff;
+            min-height: 100vh;
         }
-
-        .headerDiv {
-            text-align: center;
+        .container {
+            max-width: 1200px;
+            margin: 60px auto;
+            padding: 0 20px;
         }
-
-        .headerDiv h1 {
-            display: inline-block;
+        .admin-card {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 32px;
+            padding: 40px;
+            backdrop-filter: blur(20px);
         }
-
-        .headerDiv ion-icon {
-            display: inline-block;
-            font-size: 1.5rem;
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+        .card-header h1 {
+            font-size: 2rem;
+            font-weight: 800;
+            margin: 0;
+            background: linear-gradient(to right, #fff, #94a3b8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .refresh-btn {
+            background: none;
+            border: none;
+            color: var(--primary);
+            font-size: 2rem;
             cursor: pointer;
-            margin: 0px 0px -3px 12px;
+            transition: transform 0.3s ease;
         }
-
+        .refresh-btn:hover { transform: rotate(180deg); }
+        
+        .table-container {
+            overflow-x: auto;
+        }
         table {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 20px;
         }
-
-        td {
-            font-weight: 500;
-        }
-
-        th,
-        td {
-            padding: 10px;
-            text-align: left;
-            border-bottom: 1px solid #ddd;
-            text-align: center;
-        }
-
         th {
-            background-color: #fff;
-            font-weight: 900;
+            text-align: left;
+            padding: 15px;
+            color: #64748b;
+            font-size: 0.8rem;
             text-transform: uppercase;
-
+            letter-spacing: 1px;
+            border-bottom: 1px solid var(--glass-border);
         }
-
-        td:last-child {
+        td {
+            padding: 20px 15px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.02);
+            font-size: 0.95rem;
+        }
+        tr:hover td {
+            background: rgba(255, 255, 255, 0.01);
+        }
+        .cancel-btn {
+            padding: 8px 16px;
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+            color: #f87171;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .cancel-btn:hover {
+            background: #ef4444;
+            color: #fff;
+        }
+        .status-msg {
+            padding: 15px;
+            border-radius: 12px;
+            margin-bottom: 20px;
             text-align: center;
         }
-
-        .cancel-btn {
-            padding: 5px 10px;
-            background-color: #ff6666;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-        }
+        .status-success { background: rgba(34, 197, 94, 0.1); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.2); }
     </style>
 </head>
-
 <body>
-    <div class="course-form-section">
-        <div class="course-form-container">
-            <div class="headerDiv">
-                <h1>Current Memberships</h1><ion-icon onclick="refresh();" name="refresh-circle-outline"></ion-icon>
-            </div>
+<?php include 'admin_nav.php'; ?>
+
+<div class="container">
+    <div class="admin-card">
+        <div class="card-header">
+            <h1>Memberships</h1>
+            <button class="refresh-btn" onclick="location.reload()"><ion-icon name="refresh-circle-outline"></ion-icon></button>
+        </div>
+
+        <?php if ($success): ?>
+            <div class="status-msg status-success"><?php echo $success; ?></div>
+        <?php endif; ?>
+
+        <div class="table-container">
             <table>
-                <tr>
-                    <th>Name</th>
-                    <th>Course ID</th>
-                    <th>Start Date</th>
-                    <th>End Date</th>
-                    <th>Actions</th>
-                </tr>
-                <!-- Add more rows here -->
-                <?php
-                $memSel = "SELECT * FROM  memberships WHERE 1";
-                if ($result = $conn->query($memSel)) {
-                    while ($row = mysqli_fetch_assoc($result)) {
-                        $name = $row['name'];
-                        $crId = $row['course_id'];
-                        $startDate = $row['start_date'];
-                        $endDate = $row['end_date'];
-                        $mbsId = $row['mbs_id'];
-                        $crSel = "SELECT title FROM  courses WHERE course_id = '$crId'";
-                        echo '<tr>
-                        <td>' . $name . '</td>
-                        <td>' . $crId . '</td>
-                        <td>' . substr($startDate, 0, 10) . '</td>
-                        <td>' . substr($endDate, 0, 10) . '</td>
-                        <td>
-                        <form method="POST">
-                        <button class="cancel-btn" value="' . $mbsId . '" name="cancel">Cancel Membership</button></td>
-                        </form>
-                    </tr>';
-                    }
-                }
-                ?>
+                <thead>
+                    <tr>
+                        <th>Member Name</th>
+                        <th>Course</th>
+                        <th>Start Date</th>
+                        <th>End Date</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($memberships as $row): 
+                        $course = $db->fetchOne("SELECT title FROM courses WHERE course_id = ?", [$row['course_id']]);
+                    ?>
+                        <tr>
+                            <td style="font-weight: 600;"><?php echo htmlspecialchars($row['name'], ENT_QUOTES, 'UTF-8'); ?></td>
+                            <td><?php echo htmlspecialchars($course['title'] ?? 'Unknown', ENT_QUOTES, 'UTF-8'); ?></td>
+                            <td><?php echo date('M d, Y', strtotime($row['start_date'])); ?></td>
+                            <td><?php echo date('M d, Y', strtotime($row['end_date'])); ?></td>
+                            <td>
+                                <form method="POST" onsubmit="return confirm('Are you sure you want to cancel this membership?')">
+                                    <button type="submit" name="cancel" value="<?php echo $row['mbs_id']; ?>" class="cancel-btn">Cancel</button>
+                                </form>
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
             </table>
         </div>
     </div>
-    <script>
-        function refresh() {
-            location.reload();
-        }
-        if (window.history.replaceState) {
-            window.history.replaceState(null, null, window.location.href);
-        }
-    </script>
-</body>
+</div>
 
+<?php include '../foot.php'; ?>
+</body>
 </html>

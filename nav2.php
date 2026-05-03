@@ -1,79 +1,48 @@
-<!DOCTYPE html>
-<html lang="en">
-
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Willty Fitness</title>
-  <script>
-    function homeCaller() {
-      window.location.pathname = 'GYMAPP/home.php'
-    }
-  </script>
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,300;1,400&display=swap');
-
-    body {
-      margin: 0;
-      padding: 0;
-      font-family: 'Poppins', sans-serif;
-      background-image: url('logo.png')center cover no-repeat;
-      font-weight: 800;
-    }
-
+<style>
     .navbar {
-      height: 10vh;
-      /* font-size: 3rem; */
-      background-color: black;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      /* padding: 20px; */
-      box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.2);
+        height: 10vh;
+        background-color: black;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.2);
+        padding: 0 30px;
     }
 
     .logo {
-      height: 12vh;
-      display: flex;
-      flex-direction: row;
-      margin: 0pc 30px;
-      z-index: 2;
-      cursor:pointer;
-
-    }
-
-    .logoImg {
-      /* margin: 2px 12px; */
-      height: 100%;
+        height: 8vh;
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        z-index: 2;
+        cursor: pointer;
     }
 
     .logoImg img {
-      height: 12vh;
-      width: 12vh;
-
+        height: 6vh;
+        width: auto;
     }
 
-    h3{
+    .logo h3 {
         color: #fff;
-        margin: auto;
+        margin-left: 15px;
         letter-spacing: 1px;
         font-size: 1.3rem;
+        font-weight: 700;
     }
+</style>
 
-
-  </style>
-</head>
-
-<body>
-  <div class="navbar">
+<div class="navbar">
     <div class="logo" onclick="homeCaller()">
-      <div class="logoImg">
-        <img src="admin/logo2.png" alt="no image">
-      </div>
-      <h3>Willity Fitness</h3>
+        <div class="logoImg">
+            <img src="admin/logo2.png" alt="logo">
+        </div>
+        <h3>Willity Fitness</h3>
     </div>
-  </div>
+</div>
 
-</body>
-
-</html>
+<script>
+    function homeCaller() {
+        window.location.href = 'home.php';
+    }
+</script>

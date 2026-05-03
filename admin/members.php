@@ -1,148 +1,149 @@
 <?php
-include 'admin_nav.php';
-include '../conn.php';
+require_once __DIR__ . '/../config/app.php';
 
-if (isset($_SESSION['admin_name'])) {
+use App\Admin;
+use App\SessionManager;
 
-} else {
-    header("location:admin_login.php");
+$session = new SessionManager();
+$session->start();
+$session->checkTimeout();
 
+if (!$session->isAdmin()) {
+    header('Location: admin_login.php');
+    exit;
 }
+
+$page = max(1, (int)($_GET['page'] ?? 1));
+$perPage = 20;
+
+$admin = new Admin();
+$members = $admin->getAllMembers($page, $perPage);
 ?>
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>User Details</title>
-
+    <title>Member Directory - Willty Fitness</title>
     <style>
-        .course-form-section {
-            background-color: #fff;
-            padding: 50px 0;
-            margin-bottom: 150px;
+        :root {
+            --primary: #818cf8;
+            --bg-dark: #0f172a;
+            --glass-bg: rgba(255, 255, 255, 0.03);
+            --glass-border: rgba(255, 255, 255, 0.08);
         }
-
-        .course-form-container {
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 20px 37px;
-            /* border: 1px solid #444; */
-            border-radius: 5px;
-            background: #eff2fb;
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-dark);
+            color: #fff;
+            min-height: 100vh;
         }
-
-        .headerDiv {
-            text-align: center;
+        .container {
+            max-width: 1200px;
+            margin: 60px auto;
+            padding: 0 20px;
         }
-
-        .headerDiv h1 {
-            display: inline-block;
+        .admin-card {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 32px;
+            padding: 40px;
+            backdrop-filter: blur(20px);
         }
-
-        .headerDiv ion-icon {
-            display: inline-block;
-            font-size: 1.5rem;
-            cursor: pointer;
-            margin: 0px 0px -3px 12px;
+        .card-header {
+            margin-bottom: 30px;
         }
-
+        .card-header h1 {
+            font-size: 2rem;
+            font-weight: 800;
+            margin: 0;
+            background: linear-gradient(to right, #fff, #94a3b8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .table-container {
+            overflow-x: auto;
+        }
         table {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 20px;
         }
-
-        td {
-            font-weight: 500;
-        }
-
-        th,
-        td {
-            padding: 10px;
-            text-align: left;
-            border-bottom: 1px solid #ddd;
-            text-align: center;
-        }
-
         th {
-            background-color: #fff;
-            font-weight: 900;
+            text-align: left;
+            padding: 15px;
+            color: #64748b;
+            font-size: 0.8rem;
             text-transform: uppercase;
-
+            letter-spacing: 1px;
+            border-bottom: 1px solid var(--glass-border);
         }
-
-        td:last-child {
-            text-align: center;
+        td {
+            padding: 20px 15px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.02);
+            font-size: 0.95rem;
         }
-
-        .cancel-btn {
-            padding: 5px 10px;
-            background-color: #ff6666;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
+        tr:hover td {
+            background: rgba(255, 255, 255, 0.01);
+        }
+        .id-badge {
+            font-family: monospace;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 4px 8px;
+            border-radius: 6px;
+            color: #94a3b8;
+        }
+        .count-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 30px;
+            height: 30px;
+            background: rgba(129, 140, 248, 0.1);
+            color: var(--primary);
+            border-radius: 50%;
+            font-weight: 700;
+            font-size: 0.85rem;
         }
     </style>
 </head>
-
 <body>
-    <div class="course-form-section">
-        <div class="course-form-container">
-            <div class="headerDiv">
-                <h1>Members</h1><ion-icon onclick="refresh();" name="refresh-circle-outline"></ion-icon>
-            </div>
+<?php include 'admin_nav.php'; ?>
 
+<div class="container">
+    <div class="admin-card">
+        <div class="card-header">
+            <h1>Member Directory</h1>
+        </div>
+
+        <div class="table-container">
             <table>
-                <tr>
-                    <th>Name</th>
-                    <th>Member ID</th>
-                    <th>Courses Enrolled</th>
-                </tr>
-                <?php
-                    $selMem = "SELECT * FROM `members` WHERE 1";
-                    $memIdArr = array();
-                    $memNameArr = array();
-                    if ($result = mysqli_query($conn, $selMem)) {
-                        while ($row = mysqli_fetch_assoc($result)) {
-                            $memId = $row['member_id'];
-                            $name = $row['name'];
-                            array_push($memIdArr,$memId);
-                            array_push($memNameArr,$name);
-                        }
-                    }
-                    $round = count($memIdArr);
-                    for($i = 0; $i < $round; $i++){
-                        $crArr = array();
-                        $tmpId = $memIdArr[$i];
-                        $crSel = "SELECT course_id FROM `memberships` WHERE member_id = '$tmpId'";
-                        if ($result = mysqli_query($conn, $crSel)) {
-                            while ($row = mysqli_fetch_assoc($result)) {
-                                array_push($crArr,$row['course_id']);
-                            }
-                        }
-                        $cr = implode(", ", $crArr);
-                        echo '<tr>
-                        <td>'.$memNameArr[$i].'</td>
-                        <td>'.$memIdArr[$i].'</td>
-                        <td>'.$cr.'</td>
-                    </tr>';
-                    }
-                    ?>
-                <!-- Add more rows here -->
+                <thead>
+                    <tr>
+                        <th>Member Name</th>
+                        <th>ID</th>
+                        <th>Email</th>
+                        <th>Phone</th>
+                        <th>Courses</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($members as $member): ?>
+                        <tr>
+                            <td style="font-weight: 600;"><?= htmlspecialchars((string)($member['name'] ?? ''), ENT_QUOTES, 'UTF-8') ?></td>
+                            <td><span class="id-badge">#<?= htmlspecialchars((string)($member['member_id'] ?? ''), ENT_QUOTES, 'UTF-8') ?></span></td>
+                            <td><?= htmlspecialchars((string)($member['email'] ?? ''), ENT_QUOTES, 'UTF-8') ?></td>
+                            <td><?= htmlspecialchars((string)($member['phone'] ?? ''), ENT_QUOTES, 'UTF-8') ?></td>
+                            <td><span class="count-badge"><?= (int)($member['enrolled_courses'] ?? 0) ?></span></td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
             </table>
         </div>
     </div>
-    <script>
-        function refresh() {
-            location.reload();
-        }
-        if (window.history.replaceState) {
-            window.history.replaceState(null, null, window.location.href);
-        }
-    </script>
-</body>
+</div>
 
+<?php include '../foot.php'; ?>
+</body>
 </html>

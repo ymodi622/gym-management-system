@@ -1,24 +1,24 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Your Gym Name</title>
 <style>
-  /* ... (previous styles) ... */
-  
-  .copyright {
-    background-color: #e9e9e9;
-    color: #000;
-    text-align: center;
-    padding: 2px 0;
-  }
+    .footer {
+        background: #020617;
+        color: #94a3b8;
+        text-align: center;
+        padding: 30px 20px;
+        border-top: 1px solid rgba(255, 255, 255, 0.05);
+        font-size: 0.9rem;
+    }
+    .footer-content {
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+    .footer p {
+        margin: 0;
+        letter-spacing: 0.5px;
+    }
 </style>
-</head>
-<body>
-  
-  <div class="copyright">
-    <p>&copy; 2023 Willty Fitness. All rights reserved.</p>
-  </div>
-</body>
-</html>
+
+<footer class="footer">
+    <div class="footer-content">
+        <p>&copy; <?php echo date('Y'); ?> Willty Fitness. All rights reserved. Crafted for excellence.</p>
+    </div>
+</footer>

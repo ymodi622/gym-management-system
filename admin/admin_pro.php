@@ -1,39 +1,48 @@
 <?php
-include '../conn.php';
+require_once __DIR__ . '/../config/app.php';
+
+use App\Database;
+use App\SessionManager;
+
 include 'admin_nav.php';
 
-if (isset($_SESSION['admin_name'])) {
-    $name = $_SESSION['admin_name'];
-    $email = "";
-    $sel = "SELECT * FROM admins where name = '$name'";
-    if ($res = mysqli_query($conn, $sel)) {
-        if ($res->num_rows > 0) {
-            while ($row = $res->fetch_assoc()) {
-                $email = $row['email'];
+$session = new SessionManager();
+$session->start();
+$session->checkTimeout();
 
-            }
-        }
-    }
-    if (isset($_POST['submitPass'])) {
-        if ((isset($_POST['newPass'])) && (isset($_POST['conPass']))) {
-            $npass = $_POST['newPass'];
-            $cpass = $_POST['conPass'];
-            if ((strlen($npass) >= '8') && $npass == $cpass) {
-                $_SESSION['new_pass']= $npass;
-                header("location:sendmail.php");
-                } else {
-                    echo "<script>alert('Something wrong with your password!')</script>";
-                }
-            }
-        }
+if (!$session->isAdmin()) {
+    header('Location: admin_login.php');
+    exit;
+}
 
+$db = Database::getInstance();
+$name = (string)$_SESSION['admin_name'];
+$email = '';
+$error = '';
+
+$row = $db->fetchOne('SELECT email FROM admins WHERE name = ? LIMIT 1', [$name]);
+if ($row) {
+    $email = (string)$row['email'];
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (!$session->verifyCsrf($_POST['csrf_token'] ?? null)) {
+        $error = 'Invalid request token.';
+    } elseif (isset($_POST['submitPass'])) {
+        $npass = (string)($_POST['newPass'] ?? '');
+        $cpass = (string)($_POST['conPass'] ?? '');
+        if (strlen($npass) >= 8 && hash_equals($npass, $cpass)) {
+            $_SESSION['new_pass_hash'] = password_hash($npass, PASSWORD_BCRYPT);
+            header('Location: sendmail.php');
+            exit;
+        }
+        $error = 'Something is wrong with your password.';
+    } elseif (isset($_POST['submit'])) {
+        $session->destroy();
+        header('Location: admin_login.php');
+        exit;
     }
-    if (isset($_POST['submit'])) {
-        session_destroy(); //destroy the session
-        $_SESSION = [];
-        header("location:admin_login.php"); //to redirect back to "index.php" after logging out
-        // exit();
-    } 
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -171,20 +180,23 @@ if (isset($_SESSION['admin_name'])) {
             <div class="course-form-button changePass">
                 <button name="changeBtn" id="changeBtn" onclick="formDisplay()">Change password</button>
                 <form method="POST" class="inactive" id="passForm">
+                    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($session->csrfToken(), ENT_QUOTES, 'UTF-8') ?>">
                     <div class="course-form-input">
                         <label for="course-image">New Password</label>
                         <input type="password" name="newPass" required>
                     </div>
                     <div class="course-form-input">
                         <label for="course-image">Confirm Password</label>
-                        <input type="password" name="conPass"" required>
+                        <input type="password" name="conPass" required>
                         </div>
-                    <button type=" submit" name="submitPass">Proceed</button>
+                    <button type="submit" name="submitPass">Proceed</button>
                 </form>
                 <!-- </form> -->
             </div>
         </div>
+        <?php if ($error !== ''): ?><p style="color:red; text-align:center;"><?= htmlspecialchars($error, ENT_QUOTES, 'UTF-8') ?></p><?php endif; ?>
         <form method="POST">
+            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($session->csrfToken(), ENT_QUOTES, 'UTF-8') ?>">
             <div class="course-form-button">
                 <button id="logOutBtn" type="submit" name="submit">Log Out<ion-icon
                         name="log-out-outline"></ion-icon></button>

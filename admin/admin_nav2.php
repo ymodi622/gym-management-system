@@ -1,73 +1,42 @@
-<!DOCTYPE html>
-<html lang="en">
-
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Willty Fitness</title>
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,300;1,400&display=swap');
-
-    body {
-      margin: 0;
-      padding: 0;
-      font-family: 'Poppins', sans-serif;
-      background-image: url('logo.png')center cover no-repeat;
-      font-weight: 800;
+<style>
+    .admin-minimal-nav {
+        height: 80px;
+        background: rgba(15, 23, 42, 0.9);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        position: sticky;
+        top: 0;
+        z-index: 1000;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     }
 
-    .navbar {
-      height: 10vh;
-      /* font-size: 3rem; */
-      background-color: black;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      /* padding: 20px; */
-      box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.2);
+    .admin-minimal-nav .logo {
+        height: 45px;
+        display: flex;
+        align-items: center;
+        gap: 15px;
     }
 
-    .logo {
-      height: 12vh;
-      display: flex;
-      flex-direction: row;
-      margin: 0pc 30px;
-      z-index: 2;
-
+    .admin-minimal-nav .logo img {
+        height: 100%;
+        width: auto;
     }
 
-    .logoImg {
-      /* margin: 2px 12px; */
-      height: 100%;
-    }
-
-    .logoImg img {
-      height: 12vh;
-      width: 12vh;
-
-    }
-
-    h3{
+    .admin-minimal-nav .logo span {
         color: #fff;
-        margin: auto;
-        letter-spacing: 1px;
-        font-size: 1.3rem;
+        font-weight: 800;
+        font-size: 1.25rem;
+        letter-spacing: -0.025em;
+        text-transform: uppercase;
     }
+</style>
 
-
-  </style>
-</head>
-
-<body>
-  <div class="navbar">
+<nav class="admin-minimal-nav">
     <div class="logo">
-      <div class="logoImg">
-        <img src="logo2.png" alt="no image">
-      </div>
-      <h3>Willity Fitness</h3>
+        <img src="logo2.png" alt="Willty Admin">
+        <span>Willty Admin</span>
     </div>
-  </div>
-
-</body>
-
-</html>
+</nav>

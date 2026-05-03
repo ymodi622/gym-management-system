@@ -1,259 +1,260 @@
 <?php
-$passwordErr = "";
-session_start();
-include 'nav2.php';
-include 'conn.php';
-if (isset($_POST["submit"])) {
-  $name = $_POST['name'];
-  $email = $_POST['email'];
-  $ph = $_POST['phone'];
-  $gen = $_POST['gender'];
-  $pass = $_POST['pass'];
-  $cpass = $_POST['cpass'];
-  if ((strlen($pass) >= '8') && ($pass == $cpass)) {
-    if ((strlen(strval($ph)) == 10)) {
-      if (($hg = floatval($_POST['height'])) && ($wt = floatval($_POST['weight']))) {
-        
-        if (isset($_POST["email"])) {
-          
-          $sel = "SELECT email FROM users WHERE email  = '$email'";
-          $result = $conn->query($sel);
-          
-          if ($result->num_rows > 0) {
-            echo "<script>alert('User already registered!')</script>";
-            
-          } else {
-            $us = uniqid("willuser_");
-            $_SESSION['name'] = $name;
-            $_SESSION['us_email'] = $email;
-            $_SESSION['phone'] = $ph;
-            $_SESSION['gender'] = $gen;
-            $_SESSION['pass'] = $pass;
-            $_SESSION['us'] = $us;
-            $_SESSION['height'] = $hg;
-            $_SESSION['weight'] = $wt;
-            header("location:us_sendmail.php");
-          }
-        }
-      }else{
-        echo "<script>alert('Height and weight should not be in characters!')</script>";
+require_once __DIR__ . '/config/app.php';
 
-      }
+use App\SessionManager;
+use App\User;
+use App\Validator;
+
+$session = new SessionManager();
+$session->start();
+$session->checkTimeout();
+
+$error = '';
+$success = '';
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (!$session->verifyCsrf($_POST['csrf_token'] ?? null)) {
+        $error = 'Invalid request token.';
+    } elseif (($_POST['pass'] ?? '') !== ($_POST['cpass'] ?? '')) {
+        $error = 'Password and confirm password do not match.';
     } else {
-      echo "<script>alert('Phone number should be of 10 digits!')</script>";
+        $payload = [
+            'name' => Validator::sanitizeInput((string)($_POST['name'] ?? '')),
+            'email' => Validator::sanitizeInput((string)($_POST['email'] ?? '')),
+            'phone' => Validator::sanitizeInput((string)($_POST['phone'] ?? '')),
+            'gender' => Validator::sanitizeInput((string)($_POST['gender'] ?? 'other')),
+            'password' => (string)($_POST['pass'] ?? ''),
+            'height' => (float)($_POST['height'] ?? 0),
+            'weight' => (float)($_POST['weight'] ?? 0),
+        ];
+
+        $user = new User();
+        $result = $user->register($payload);
+
+        if ($result === true) {
+            $success = 'Registration completed. You can log in now.';
+        } else {
+            $error = (string)$result;
+        }
     }
-  }else {
-    echo "<script>alert('Something wrong with your password!')</script>";
-
-  }
 }
-
 ?>
-
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Your Gym Name</title>
-  <style>
-    /* ... (previous styles) ... */
-    @import url('https://fonts.googleapis.com/css2?family=Poppins&display=swap');
-
-    .form-section {
-      background: #171717;
-      padding: 50px 0;
-      color: #fff;
-      font-family: 'Poppins', sans-serif;
-    }
-
-    .form-container {
-      max-width: 800px;
-      margin: 0 auto;
-      padding: 10px 20px;
-      border: 1px solid #444;
-      border-radius: 5px;
-      background: #292929;
-    }
-
-    .form-container h2 {
-      text-align: center;
-      font-size: 2rem;
-      margin-bottom: 20px;
-    }
-
-    .form-input {
-      margin-bottom: 15px;
-    }
-
-    .form-input label {
-      display: block;
-      margin-bottom: 5px;
-      margin-left: 40px;
-
-    }
-
-    .form-input input[type="text"],
-    .form-input input[type="number"],
-    .form-input input[type="tel"],
-    .form-input input[type="email"],
-    .form-input input[type="password"],
-    .form-input select {
-      width: 70%;
-      padding: 10px;
-      border: 1px solid #444;
-      border-radius: 5px;
-      background-color: #333;
-      color: white;
-      margin-left: 40px;
-    }
-
-    .form-input select {
-      width: 74%;
-      padding: 10px;
-      border: 1px solid #444;
-      border-radius: 5px;
-      background-color: #333;
-      color: white;
-      appearance: none;
-      margin-left: 40px;
-
-    }
-
-    .form-button {
-      text-align: center;
-    }
-
-    .form-button button {
-      padding: 10px 20px;
-      background-color: #FFC107;
-      border: none;
-      border-radius: 5px;
-      color: black;
-      font-weight: bold;
-      cursor: pointer;
-    }
-
-    .form-button button:hover {
-      background-color: #FFA000;
-    }
-
-    .btnDiv {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      width: 100%;
-    }
-
-    button {
-      padding: 12px 50px;
-      margin: 15px auto;
-      border-radius: 10px;
-      border: 0;
-      background-color: white;
-      box-shadow: rgb(0 0 0 / 5%) 0 0 8px;
-      letter-spacing: 1.5px;
-      text-transform: uppercase;
-      font-size: 15px;
-      font-weight: 600;
-      transition: all .5s ease;
-      color: #171717;
-    }
-
-    button:hover {
-      letter-spacing: 3px;
-      background-color: hsl(261deg 80% 48%);
-      color: hsl(0, 0%, 100%);
-      box-shadow: rgb(93 24 220) 0px 7px 29px 0px;
-    }
-
-    button:active {
-      letter-spacing: 3px;
-      background-color: hsl(261deg 80% 48%);
-      color: hsl(0, 0%, 100%);
-      box-shadow: rgb(93 24 220) 0px 0px 0px 0px;
-      transform: translateY(10px);
-      transition: 100ms;
-    }
-
-    .form-input p {
-      font-size: 0.8rem;
-      margin: 2px 40px;
-    }
-    a {
-       color: #fff;
-       text-decoration: none;
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Register - Willty Fitness</title>
+    <style>
+        :root {
+            --primary-color: #0061eb;
+            --secondary-color: #00aeff;
+            --bg-dark: #0f172a;
+            --glass-bg: rgba(255, 255, 255, 0.05);
+            --glass-border: rgba(255, 255, 255, 0.1);
         }
-    .linkCon a:hover{
-        text-decoration: underline;
+
+        body {
+            margin: 0;
+            padding: 0;
+            background: var(--bg-dark);
+            color: #fff;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
         }
-      .linkCon{
-          margin-left: 41px;
+
+        .form-section {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 40px 20px;
+            background: radial-gradient(circle at top right, rgba(0, 97, 235, 0.1), transparent),
+                        radial-gradient(circle at bottom left, rgba(0, 174, 255, 0.1), transparent);
         }
-      .linkCon p{
-        margin: 0px 0px 8px;
-      }
-      
-      
-  </style>
+
+        .form-container {
+            width: 100%;
+            max-width: 600px;
+            background: var(--glass-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        }
+
+        .form-container h2 {
+            margin-bottom: 30px;
+            font-size: 2rem;
+            font-weight: 700;
+            text-align: center;
+            background: linear-gradient(to right, #fff, #94a3b8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        @media (max-width: 600px) {
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .form-input {
+            margin-bottom: 15px;
+        }
+
+        .form-input label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 0.9rem;
+            color: #94a3b8;
+            font-weight: 500;
+        }
+
+        .form-input input, .form-input select {
+            width: 100%;
+            padding: 12px 16px;
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid var(--glass-border);
+            border-radius: 10px;
+            color: #fff;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            box-sizing: border-box;
+        }
+
+        .form-input input:focus, .form-input select:focus {
+            outline: none;
+            border-color: var(--secondary-color);
+            box-shadow: 0 0 0 4px rgba(0, 174, 255, 0.1);
+        }
+
+        .btnDiv {
+            margin-top: 30px;
+            grid-column: span 2;
+        }
+
+        @media (max-width: 600px) {
+            .btnDiv {
+                grid-column: span 1;
+            }
+        }
+
+        .btnDiv button {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            border: none;
+            border-radius: 10px;
+            color: #fff;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .btnDiv button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgba(0, 97, 235, 0.4);
+        }
+
+        .btnDiv button:active {
+            transform: translateY(0);
+        }
+
+        .linkCon {
+            margin-top: 20px;
+            text-align: center;
+            font-size: 0.9rem;
+            color: #94a3b8;
+            grid-column: span 2;
+        }
+
+        @media (max-width: 600px) {
+            .linkCon {
+                grid-column: span 1;
+            }
+        }
+
+        .linkCon a {
+            color: var(--secondary-color);
+            text-decoration: none;
+            font-weight: 600;
+            transition: color 0.3s ease;
+        }
+
+        .linkCon a:hover {
+            color: #fff;
+        }
+
+        .error-message {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+            color: #ef4444;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 0.85rem;
+            text-align: center;
+            grid-column: span 2;
+        }
+
+        .success-message {
+            background: rgba(34, 197, 94, 0.1);
+            border: 1px solid rgba(34, 197, 94, 0.2);
+            color: #22c55e;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 0.85rem;
+            text-align: center;
+            grid-column: span 2;
+        }
+    </style>
 </head>
-
 <body>
-  <!-- ... (previous content) ... -->
-
-  <div class="form-section">
+<?php include 'nav.php'; ?>
+<div class="form-section">
     <div class="form-container">
-      <h2>User Register</h2>
-      <form method="POST">
-        <div class=" form-input">
-          <label for="name">Name</label>
-          <input type="text" id="name" name="name" required>
-        </div>
-        <div class="form-input">
-          <label for="height">Height (cm)</label>
-          <input type="text" id="height" name="height" required>
-        </div>
-        <div class="form-input">
-          <label for="weight">Weight (kg)</label>
-          <input type="text" id="weight" name="weight" required>
-        </div>
-        <div class="form-input">
-          <label for="gender">Gender</label>
-          <select id="gender" name="gender" required>
-            <option value="male">Male</option>
-            <option value="female">Female</option>
-            <option value="other">Other</option>
-          </select>
-        </div>
-        <div class="form-input">
-          <label for="phone">Phone</label>
-          <input type="tel" id="phone" name="phone" required>
-        </div>
-        <div class="form-input">
-          <label for="email">Email</label>
-          <input type="email" id="email" name="email" required>
-        </div>
-        <div class="form-input">
-          <label for="email">Create Password</label>
-          <input type="password" id="pass" name="pass" required>
-          <p>At least 8 characters</p>
-        </div>
-        <div class="form-input">
-          <label for="email">Confirm Password</label>
-          <input type="password" id="cpass" name="cpass" required>
-        </div>
-        <div class="linkCon">
-        <p>Already have an account? </p><a href="user_login.php"><b>login from here</b></a></div>
-        <div class="btnDiv"><button type="submit" name="submit"> SUBMIT
-          </button></div>
-      </form>
+        <h2>User Register</h2>
+        <form method="POST" class="form-grid">
+            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($session->csrfToken(), ENT_QUOTES, 'UTF-8') ?>">
+            
+            <?php if ($error !== ''): ?><div class="error-message"><?= htmlspecialchars($error, ENT_QUOTES, 'UTF-8') ?></div><?php endif; ?>
+            <?php if ($success !== ''): ?><div class="success-message"><?= htmlspecialchars($success, ENT_QUOTES, 'UTF-8') ?></div><?php endif; ?>
+
+            <div class="form-input"><label for="name">Name</label><input type="text" id="name" name="name" required placeholder="Full Name"></div>
+            <div class="form-input">
+                <label for="gender">Gender</label>
+                <select id="gender" name="gender" required>
+                    <option value="male">Male</option>
+                    <option value="female">Female</option>
+                    <option value="other">Other</option>
+                </select>
+            </div>
+            <div class="form-input"><label for="height">Height (cm)</label><input type="number" step="0.01" id="height" name="height" required placeholder="175"></div>
+            <div class="form-input"><label for="weight">Weight (kg)</label><input type="number" step="0.01" id="weight" name="weight" required placeholder="70"></div>
+            <div class="form-input"><label for="phone">Phone</label><input type="tel" id="phone" name="phone" required placeholder="+91 ..."></div>
+            <div class="form-input"><label for="email">Email</label><input type="email" id="email" name="email" required placeholder="your@email.com"></div>
+            <div class="form-input"><label for="pass">Password</label><input type="password" id="pass" name="pass" required placeholder="••••••••"></div>
+            <div class="form-input"><label for="cpass">Confirm Password</label><input type="password" id="cpass" name="cpass" required placeholder="••••••••"></div>
+            
+            <div class="btnDiv"><button type="submit" name="submit">Create Account</button></div>
+            <div class="linkCon"><p>Already have an account? <a href="user_login.php">Login from here</a></p></div>
+        </form>
     </div>
-  </div>
+</div>
+<?php include 'foot.php'; ?>
 </body>
-
 </html>
-<?php
-
-
-include 'foot.php'; ?>

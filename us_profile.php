@@ -1,342 +1,306 @@
 <?php
-// session_start();
-include 'conn.php';
-include 'nav.php';
-if ((isset($_POST['submit'])) || (!isset($_SESSION['user_email']))) {
-    session_destroy(); //destroy the session
-    $_SESSION = [];
-    header("location:user_login.php");
+require_once __DIR__ . '/config/app.php';
+
+use App\Database;
+use App\SessionManager;
+
+$session = new SessionManager();
+$session->start();
+$session->checkTimeout();
+
+if (!$session->isLoggedIn()) {
+    $session->destroy();
+    header('Location: user_login.php');
+    exit;
 }
-if (isset($_POST['usmChangeBtn'])) {
-    $newUsm = $_POST['usmChange'];
-    $email = $_SESSION['user_email'];
-    $usId = $_SESSION['user_id'];
-    $usmUp = "UPDATE users SET name = '$newUsm' WHERE email = '$email'";
-    if ($res = mysqli_query($conn, $usmUp)) {
-        echo "<script>alert('Username updated sucessfully,Please log in again.');
-        window.location = 'user_login.php'; 
-        </script>";
+
+$db = Database::getInstance();
+$error = '';
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (!$session->verifyCsrf($_POST['csrf_token'] ?? null)) {
+        die('CSRF validation failed');
     }
-}
-if (isset($_POST['submitPass'])) {
-    if ((isset($_POST['newPass'])) && (isset($_POST['conPass']))) {
-        $npass = $_POST['newPass'];
-        $cpass = $_POST['conPass'];
-        if ((strlen($npass) >= '8') && $npass == $cpass) {
-            $_SESSION['new_pass'] = $npass;
-            header("location:admin/sendmail.php");
-        } else {
-            echo "<script>alert('Something wrong with your password!')</script>";
+
+    if (isset($_POST['submit'])) {
+        $session->destroy();
+        header('Location: user_login.php');
+        exit;
+    }
+
+    if (isset($_POST['usmChangeBtn'])) {
+        $newUsm = trim((string)($_POST['usmChange'] ?? ''));
+        $email = (string)($_SESSION['user_email'] ?? '');
+        if ($newUsm !== '') {
+            $ok = $db->execute('UPDATE users SET name = ? WHERE email = ?', [$newUsm, $email]);
+            if ($ok) {
+                $_SESSION['user_name'] = $newUsm;
+                header('Location: us_profile.php');
+                exit;
+            }
+            $error = 'Unable to update username.';
         }
     }
-}
-if (isset($_SESSION['user_id'])) {
-    $usId = $_SESSION['user_id'];
-    $crSel = "SELECT course_id,end_date FROM memberships WHERE user_id = '$usId'";
-}
-?>
 
+    if (isset($_POST['submitPass'])) {
+        $npass = (string)($_POST['newPass'] ?? '');
+        $cpass = (string)($_POST['conPass'] ?? '');
+        if (strlen($npass) >= 8 && hash_equals($npass, $cpass)) {
+            $_SESSION['new_pass_hash'] = password_hash($npass, PASSWORD_BCRYPT);
+            header('Location: admin/sendmail.php');
+            exit;
+        }
+        $error = 'Something wrong with your password!';
+    }
+}
+
+$usId = (string)($_SESSION['user_id'] ?? '');
+$memberships = $db->fetchAll('SELECT course_id, end_date FROM memberships WHERE user_id = ?', [$usId]);
+?>
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Your Profile</title>
+    <title>Your Profile - Willty Fitness</title>
     <style>
-        .course-form-section {
-            background-color: #fff;
-            padding: 50px 0;
-            margin-bottom: 150px;
+        :root {
+            --primary: #38bdf8;
+            --bg-dark: #0f172a;
+            --glass-bg: rgba(255, 255, 255, 0.03);
+            --glass-border: rgba(255, 255, 255, 0.08);
         }
-
-        .course-form-container {
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 20px 37px;
-            /* border: 1px solid #444; */
-            border-radius: 5px;
-            background: #eff2fb;
-        }
-
-        .course-form-container h2 {
-            margin-bottom: 20px;
-        }
-
-        .course-form-input {
-            margin-bottom: 15px;
-        }
-
-        .course-form-input label {
-            display: block;
-            margin-bottom: 5px;
-        }
-
-        .course-form-input input[type="text"],
-        .course-form-input input[type="number"],
-        .course-form-input input[type="date"],
-        .course-form-input textarea {
-            width: 70%;
-            padding: 10px;
-            border: none;
-            border-radius: 5px;
-            background-color: #ffffff;
-            color: #000;
-        }
-
-        .course-form-input .rd_lab {
-            display: inline;
-            width: 10%;
-        }
-
-        .course-form-input input[type="file"] {
-            display: block;
-            margin-top: 5px;
-        }
-
-        .course-form-button {
-            text-align: center;
-        }
-
-        .course-form-button button {
-            padding: 10px 30px;
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-dark);
             color: #fff;
-            background-color: #0061eb;
-            border: none;
-            border-radius: 5px;
-            font-weight: bold;
-            cursor: pointer;
-            transition: 300ms all;
-            margin: 12px 13px;
-        }
-
-        .updateBtn {
-            padding: 8px 30px;
-            color: #fff;
-            background-color: #0061eb;
-            border: none;
-            border-radius: 5px;
-            font-weight: bold;
-            cursor: pointer;
-            transition: 300ms all;
-            margin: 12px 13px;
-        }
-
-        .course-form-button button:hover {
-            background-color: #00aeff;
-        }
-
-        .course-form-input {
-            margin-bottom: 15px;
-        }
-
-        .course-form-input label {
-            display: block;
-            margin-bottom: 5px;
-        }
-
-        .course-form-input input[type="password"] {
-            width: 40%;
-            padding: 10px;
-            border: none;
-            border-radius: 5px;
-            background-color: #ffffff;
-            color: #000;
-        }
-
-        h1 {
-            text-align: center;
-            display: inline-block;
-            margin: 5px;
-
-        }
-
-        #logOutBtn {
+            min-height: 100vh;
             display: flex;
-            justify-content: center;
+            flex-direction: column;
+        }
+        .profile-container {
+            max-width: 1000px;
+            margin: 60px auto;
+            padding: 0 20px;
+            width: 100%;
+            flex: 1;
+        }
+        .profile-card {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 32px;
+            padding: 40px;
+            backdrop-filter: blur(20px);
+            margin-bottom: 40px;
+        }
+        .profile-header {
+            display: flex;
             align-items: center;
-            margin: auto;
-            padding: 4px 18px;
-            transform: translateY(24px);
+            gap: 20px;
+            margin-bottom: 40px;
         }
-
-        #logOutBtn ion-icon {
-            font-size: 1.4rem;
-            margin: 3px;
+        .profile-header h1 {
+            font-size: 2.5rem;
+            font-weight: 800;
+            margin: 0;
+            background: linear-gradient(to right, #fff, #94a3b8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
         }
-
-        .active {
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+        }
+        .info-item {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 20px;
+            border-radius: 20px;
+            position: relative;
+        }
+        .info-label {
+            font-size: 0.8rem;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 5px;
             display: block;
         }
-
-        .inactive {
+        .info-value {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #fff;
+        }
+        .edit-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: none;
+            border: none;
+            color: var(--primary);
+            cursor: pointer;
+            font-size: 1.2rem;
+            transition: transform 0.3s ease;
+        }
+        .edit-btn:hover {
+            transform: scale(1.2);
+        }
+        .section-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin: 40px 0 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .enrolled-courses {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+        }
+        .course-item {
+            background: rgba(56, 189, 248, 0.05);
+            border: 1px solid rgba(56, 189, 248, 0.1);
+            padding: 25px;
+            border-radius: 24px;
+        }
+        .course-item h3 {
+            margin: 0 0 10px 0;
+            color: var(--primary);
+        }
+        .course-meta {
+            font-size: 0.9rem;
+            color: #94a3b8;
+        }
+        .btn-logout {
+            margin-top: 40px;
+            padding: 14px 28px;
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+            color: #f87171;
+            border-radius: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            width: fit-content;
+        }
+        .btn-logout:hover {
+            background: #ef4444;
+            color: #fff;
+        }
+        .modal-form {
+            margin-top: 15px;
             display: none;
         }
-
-        .detailsDiv {
-            /* background: #fff; */
-            margin: 8px 0px;
+        .modal-form.active {
+            display: block;
         }
-
-        .classBtn {
-            background-color: transparent;
+        .input-group {
+            display: flex;
+            gap: 10px;
+        }
+        input {
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid var(--glass-border);
+            padding: 10px 15px;
+            border-radius: 10px;
+            color: #fff;
+            flex: 1;
+        }
+        .update-btn {
+            background: var(--primary);
             border: none;
-            border-radius: 5px;
-            font-size: 1.2rem;
-            margin: 0px 1px;
-            transform: translateY(5px);
+            padding: 10px 20px;
+            border-radius: 10px;
+            font-weight: 600;
             cursor: pointer;
         }
-
-        input {
-            border: none;
-            border-radius: 3px;
-            padding: 5px 8px;
-        }
-
-        .crownDiv {
-            display: inline-block;
-            height: 20px;
-            width: 20px;
-            transform: translateY(-5px);
-        }
-
-        .crownDiv img {
-            height: 100%;
-            width: 100%;
-        }
-
-        .headerDiv {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-
-        .memberDetails {
-            background: #fff;
-            width: 41%;
-            display: inline-block;
-            margin: 16px 20px;
-            padding: 4px 15px;
-            border-radius: 6px;
-        }
+        .inactive { display: none; }
     </style>
 </head>
-
 <body>
-    <div class="course-form-section">
-        <div class="course-form-container">
-            <div class="headerDiv">
-                <h1>User panel</h1>
-            </div>
+<?php include 'nav.php'; ?>
 
-            <!-- <form method="POST" autocomplete="off" enctype="multipart/form-data"> -->
-            <?php
-            $name = $_SESSION['user_name'];
-            $email = $_SESSION['user_email'];
-            $phone = $_SESSION['phone'];
-            echo '<div class="detailsDiv">Username: ' . $name . ' <button class="classBtn" onclick="displayFunc()"><ion-icon
-            name="create-outline">
-        </ion-icon></button></div>
-    <div id="inpField" class="inactive">
-        <form method="POST">
-        <input type="text" id="usmChange" name="usmChange"><button
-            class="updateBtn" name="usmChangeBtn">Change</button></div> ' . '</form>
-    <div class="detailsDiv">Phone: ' . $phone . '<button class="classBtn" onclick="displayFunc2()"><ion-icon
-                name="create-outline"></ion-icon></button>
-        <div id="inpField2" class="inactive">
-        <form method="POST">
-        <input type="text" id="phChange" name="phChange"><button
-                class="updateBtn">Change</button></div> ' .
-                '</form>
-        <div class="detailsDiv">Email: ' . $email . '</div>
-    </div>';
-            ?>
+<div class="profile-container">
+    <div class="profile-card">
+        <div class="profile-header">
+            <ion-icon name="person-circle" style="font-size: 4rem; color: var(--primary);"></ion-icon>
+            <h1>User Profile</h1>
+        </div>
 
-
-            <div class="course-form-button changePass">
-                <button name="changeBtn" id="changeBtn" onclick="formDisplay()">Change password</button>
-                <form method="POST" class="inactive" id="passForm">
-                    <div class="course-form-input">
-                        <label for="course-image">New Password</label>
-                        <input type="password" name="newPass" required>
+        <div class="info-grid">
+            <div class="info-item">
+                <span class="info-label">Full Name</span>
+                <span class="info-value"><?php echo htmlspecialchars($_SESSION['user_name'], ENT_QUOTES, 'UTF-8'); ?></span>
+                <button class="edit-btn" onclick="toggleEdit('nameForm')"><ion-icon name="create-outline"></ion-icon></button>
+                <form method="POST" id="nameForm" class="modal-form">
+                    <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($session->csrfToken(), ENT_QUOTES, 'UTF-8'); ?>">
+                    <div class="input-group">
+                        <input type="text" name="usmChange" placeholder="New Name">
+                        <button type="submit" name="usmChangeBtn" class="update-btn">Save</button>
                     </div>
-                    <div class="course-form-input">
-                        <label for="course-image">Confirm Password</label>
-                        <input type="password" name="conPass"" required>
-                        </div>
-                    <button type=" submit" name="submitPass">Proceed</button>
                 </form>
-                <!-- </form> -->
             </div>
-            <div id="memberDiv">
-                <div class="headerDiv">
-                    <h1>Courses Enrolled</h1>
-                    <div class="crownDiv"><img src="crown2.png" alt=""></div>
-                </div>
-                <?php
-                $date = date("Y-m-d H:i:s");
-                if ($res = $conn->query($crSel)) {
-                    while ($row = $res->fetch_assoc()) {
-                        $crId = $row['course_id'];
-                        $endDate = $row['end_date'];
-                        $datetime1 = date_create($date);
-                        $datetime2 = date_create($endDate);
-                        $interval = date_diff($datetime1, $datetime2);
-                        $sel = "SELECT * FROM courses WHERE course_id = '$crId'";
-                        if ($result = $conn->query($sel)) {
-                            while ($row = mysqli_fetch_assoc($result)) {
-                                $title = $row['title'];
-                            }
-                            echo '<div class="memberDetails">
-                        <div class="detailsDiv">Course enrolled: ' . $title . ' </div>
-    
-                        <div class="detailsDiv">Course ends on: ' . substr($endDate, 0, 10) . '</div>
-                        <div class="detailsDiv">Time left: ' . $interval->format('%m months %d days') . '</div>
-                    </div>';
-                        }
-                    }
-                }
-                ?>
-
+            <div class="info-item">
+                <span class="info-label">Email Address</span>
+                <span class="info-value"><?php echo htmlspecialchars($_SESSION['user_email'], ENT_QUOTES, 'UTF-8'); ?></span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Phone</span>
+                <span class="info-value"><?php echo htmlspecialchars($_SESSION['phone'] ?? 'N/A', ENT_QUOTES, 'UTF-8'); ?></span>
+                <button class="edit-btn" onclick="toggleEdit('phoneForm')"><ion-icon name="create-outline"></ion-icon></button>
+                <form method="POST" id="phoneForm" class="modal-form">
+                    <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($session->csrfToken(), ENT_QUOTES, 'UTF-8'); ?>">
+                    <div class="input-group">
+                        <input type="text" name="phChange" placeholder="New Phone">
+                        <button type="submit" name="phChangeBtn" class="update-btn">Save</button>
+                    </div>
+                </form>
             </div>
         </div>
-        <form method="POST">
-            <div class="course-form-button">
-                <button id="logOutBtn" type="submit" name="submit">Log Out<ion-icon
-                        name="log-out-outline"></ion-icon></button>
-            </div>
+
+        <button class="btn-logout" onclick="toggleEdit('passForm')" style="background: rgba(56, 189, 248, 0.1); border-color: rgba(56, 189, 248, 0.2); color: var(--primary); margin-right: 10px;">Change Password</button>
+        <form method="POST" id="passForm" class="modal-form" style="max-width: 300px;">
+            <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($session->csrfToken(), ENT_QUOTES, 'UTF-8'); ?>">
+            <input type="password" name="newPass" placeholder="New Password" style="margin-bottom: 10px; width: 100%;">
+            <input type="password" name="conPass" placeholder="Confirm Password" style="margin-bottom: 10px; width: 100%;">
+            <button type="submit" name="submitPass" class="update-btn" style="width: 100%;">Update Password</button>
+        </form>
+
+        <form method="POST" style="display: inline-block;">
+            <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($session->csrfToken(), ENT_QUOTES, 'UTF-8'); ?>">
+            <button type="submit" name="submit" class="btn-logout">Log Out</button>
         </form>
     </div>
-    <script>
-        function displayFunc() {
-            let inpField = document.getElementById('inpField');
-            inpField.classList.toggle('inactive');
-        }
-        function displayFunc2() {
-            let inpField2 = document.getElementById('inpField2');
-            inpField2.classList.toggle('inactive');
-        }
-        function formDisplay() {
-            let form = document.getElementById("passForm")
-            let changeBtn = document.getElementById("changeBtn")
-            changeBtn.classList.add("inactive")
-            form.classList.remove("inactive")
-            form.classList.add("active")
-        }
-    </script>
-</body>
 
-</html>
-<?php
-if (isset($_SESSION['is_mem'])) {
-    $usEl = "SELECT user_id FROM members WHERE user_id = '$usId'";
-    if ($result = $conn->query($usEl)) {
-        if (!$row = mysqli_fetch_assoc($result)) {
-            echo '<script>let memberDiv =document.getElementById("memberDiv")
-            memberDiv.style.display = "none";</script>';
-        }
+    <h2 class="section-title"><ion-icon name="ribbon-outline"></ion-icon> Enrolled Courses</h2>
+    <div class="enrolled-courses">
+        <?php if (empty($memberships)): ?>
+            <p style="color: #64748b;">You haven't enrolled in any courses yet.</p>
+        <?php else: ?>
+            <?php foreach ($memberships as $memberRow): 
+                $courseRow = $db->fetchOne('SELECT title FROM courses WHERE course_id = ? LIMIT 1', [$memberRow['course_id']]);
+                if ($courseRow):
+            ?>
+                <div class="course-item">
+                    <h3><?php echo htmlspecialchars($courseRow['title'], ENT_QUOTES, 'UTF-8'); ?></h3>
+                    <div class="course-meta">
+                        <p>Valid until: <?php echo date('M d, Y', strtotime($memberRow['end_date'])); ?></p>
+                    </div>
+                </div>
+            <?php endif; endforeach; ?>
+        <?php endif; ?>
+    </div>
+</div>
+
+<?php include 'foot.php'; ?>
+
+<script>
+    function toggleEdit(id) {
+        document.getElementById(id).classList.toggle('active');
     }
-}
-include 'foot.php';     
-?>
+</script>
+</body>
+</html>
